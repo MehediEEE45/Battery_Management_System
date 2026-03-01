@@ -102,7 +102,7 @@ Contact / Demo
 
 Supervisor: Arif Ahammad — Assistant Professor
 
-Live demo (Netlify): https://power-monitor.netlify.app/
+Live demo (Netlify): [https://power-monitor.netlify.app/](https://iotpowerhub.netlify.app/)
 
 Open an issue to report problems or request features. This project is hosted publicly on Netlify (link above). The repository also includes a GitHub Actions workflow that can publish the static site to the `gh-pages` branch when you push to `main`; if you prefer GitHub Pages, set the Pages source in repository Settings to the `gh-pages` branch to enable that URL as well.
 ---
