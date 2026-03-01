@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MQTT over WSS Example</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+  <style>body{font-family:system-ui,Arial;margin:20px}#log{white-space:pre-wrap;background:#f7f7f7;padding:10px;border:1px solid #ddd;height:300px;overflow:auto}</style>
+</head>
+<body>
+  <h3>MQTT over WSS (HiveMQ Cloud)</h3>
+  <div>
+    <label>Broker: </label><input id="broker" value="0d34f5789e1e4a669367abfe5bd45b15.s1.eu.hivemq.cloud" size="50"><br>
+    <label>Port: </label><input id="port" value="8884" size="6"> <label>Path: </label><input id="path" value="/mqtt" size="10"><br>
+    <label>Username: </label><input id="username" value="Mehedi"> <label>Password: </label><input id="password" value="Me107645"><br>
+    <label>Topic subscribe: </label><input id="subtopic" value="esp32/commands"> <label>Topic publish: </label><input id="pubtopic" value="esp32/test"><br>
+    <button id="connectBtn">Connect</button>
+    <button id="publishBtn">Publish test message</button>
+  </div>
+  <h4>Log</h4>
+  <div id="log"></div>
+
+  <script>
+    let client = null;
+    const logEl = document.getElementById('log');
+    function log(...args){ logEl.textContent += args.join(' ') + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+    document.getElementById('connectBtn').addEventListener('click', () => {
+      const host = document.getElementById('broker').value;
+      const port = parseInt(document.getElementById('port').value);
+      const path = document.getElementById('path').value || '/mqtt';
+      const user = document.getElementById('username').value;
+      const pass = document.getElementById('password').value;
+      const clientId = 'web-' + Math.random().toString(16).substr(2, 8);
+
+      if (client) {
+        try { client.disconnect(); } catch(e){}
+        client = null;
+      }
+
+      client = new Paho.MQTT.Client(host, port, path, clientId);
+
+      client.onConnectionLost = (responseObject) => {
+        log('Connection lost:', responseObject && responseObject.errorMessage);
+      };
+
+      client.onMessageArrived = (message) => {
+        log('Received', message.destinationName, ':', message.payloadString);
+      };
+
+      const options = {
+        useSSL: true,
+        userName: user,
+        password: pass,
+        onSuccess: () => {
+          log('Connected to', host + ':' + port + path, 'as', clientId);
+          const sub = document.getElementById('subtopic').value;
+          client.subscribe(sub);
+          log('Subscribed to', sub);
+        },
+        onFailure: (err) => {
+          log('Connection failed:', err.errorMessage);
+        }
+      };
+
+      log('Connecting to wss://' + host + ':' + port + path + ' ...');
+      client.connect(options);
+    });
+
+    document.getElementById('publishBtn').addEventListener('click', () => {
+      if (!client || !client.isConnected()) { log('Not connected'); return; }
+      const topic = document.getElementById('pubtopic').value;
+      const payload = JSON.stringify({ts: Date.now(), text: 'Hello from browser'});
+      const message = new Paho.MQTT.Message(payload);
+      message.destinationName = topic;
+      client.send(message);
+      log('Published to', topic, payload);
+    });
+  </script>
+</body>
+</html>

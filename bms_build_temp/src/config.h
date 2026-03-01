@@ -1,7 +1,4 @@
 #pragma once
-// ===============================================================
-//  config.h  –  All project-wide constants, pins & credentials
-// ===============================================================
 
 #include <Arduino.h>
 
@@ -10,22 +7,24 @@
 #define LED_BUILTIN 2
 #endif
 
-// ───── LM35 Temperature Sensor ─────
-// ** GPIO 32 is on ADC1 – safe to use while WiFi is active **
-#define LM35_PIN        32
-#define DEFAULT_VREF    1100   // mV (eFuse fallback)
-#define ADC_SAMPLES     10     // averaging window
+// ───── DS18B20 Temperature Sensor ─────
+#define DS18B20_PIN     13
 
-// LM35 2-point calibration: temp = SLOPE * raw + OFFSET
-#define LM35_SLOPE_DEFAULT   1.03f
-#define LM35_OFFSET_DEFAULT -5.0f   // °C
+// DS18B20 2-point linear calibration logic
+#define CAL_RAW1    25.12f   // sensor reading at reference point 1
+#define CAL_ACTUAL1 20.0f    // true temperature at reference point 1
+#define CAL_RAW2    4.75f    // sensor reading at reference point 2
+#define CAL_ACTUAL2 0.0f     // true temperature at reference point 2
+
+#define CAL_SLOPE  ((CAL_RAW2 == CAL_RAW1) ? 1.0f : ((CAL_ACTUAL2 - CAL_ACTUAL1) / (CAL_RAW2 - CAL_RAW1)))
+#define CAL_OFFSET (CAL_ACTUAL1 - CAL_SLOPE * CAL_RAW1)
 
 // ───── WiFi (tried in order) ─────
 struct WifiCred { const char* ssid; const char* password; };
 static const WifiCred WIFI_CREDENTIALS[] = {
-    { "MiM",                "Ha20202021"  },
     { "Teachers_WiFi_SUST", "SUST11s34"   },
     { "SUST WiFi",          "SUST10s10"   },
+    { "MiM",                "Ha20202021"  },
 };
 static const size_t WIFI_CRED_COUNT =
     sizeof(WIFI_CREDENTIALS) / sizeof(WIFI_CREDENTIALS[0]);
@@ -54,18 +53,18 @@ static const unsigned long WIFI_TIMEOUT_MS = 15000;  // per SSID
 #define BUTTON_PIN    25
 
 // ───── Charge Relay ─────
-#define RELAY_PIN           26
+#define RELAY_PIN           14
 #define RELAY_ACTIVE_LEVEL  LOW    // LOW = energise coil = circuit closed
 
 // Auto cut-off thresholds (open relay = stop charging)
 #define RELAY_CUTOFF_SOC_PERCENT  95.0f   // cut when SoC  ≥ 95 %
 #define RELAY_CUTOFF_VOLTAGE_V     4.15f  // cut when V    ≥ 4.15 V
-#define RELAY_CUTOFF_TEMP_C        45.0f  // cut when Temp ≥ 45 °C
+#define RELAY_CUTOFF_TEMP_C        100.0f  // cut when Temp ≥ 100 °C
 
 // Auto resume thresholds (close relay = resume charging)
 #define RELAY_RESUME_SOC_PERCENT   85.0f  // resume when SoC  ≤ 85 %
 #define RELAY_RESUME_VOLTAGE_V      4.05f // resume when V    ≤ 4.05 V
-#define RELAY_RESUME_TEMP_C         40.0f // resume when Temp ≤ 40 °C
+#define RELAY_RESUME_TEMP_C         30.0f // resume when Temp ≤ 30 °C
 
 // ───── Battery / SoC ─────
 #define BATTERY_CAPACITY_mAh    4200.0f
