@@ -72,7 +72,7 @@ Usage and examples
 - Example payload (JSON):
 
 ```json
-{ "device_id": "panel_01", "voltage": 12.4, "current": 1.8, "power": 22.3, "temperture": 25 ,"ts": 167" }
+{ "device_id": "panel_01", "voltage": 12.4, "current": 1.8, "power": 22.3, "temperture": 25 ,"ts": 167 }
 ```
 
 Security notes
