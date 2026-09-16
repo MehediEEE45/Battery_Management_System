@@ -1,0 +1,14 @@
+{
+  "name": "power-monitor",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@netlify/database": "^1.1.0",
+    "drizzle-orm": "^1.0.0-beta.22",
+    "mqtt": "^5.16.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^3.1.10",
+    "drizzle-kit": "^1.0.0-beta.22"
+  }
+}
