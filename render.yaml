@@ -1,0 +1,30 @@
+# Render "Blueprint" — lets Render auto-configure the service from this file.
+# Deploy: render.com → New + → Blueprint → pick this repo → Render reads this file.
+# Env vars marked `sync: false` are prompted for during setup and stored only
+# in Render's dashboard — never written to this file or git.
+services:
+  - type: web
+    name: bms-mqtt-bridge
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: MQTT_URL
+        value: mqtts://0d34f5789e1e4a669367abfe5bd45b15.s1.eu.hivemq.cloud:8883
+      - key: MQTT_USERNAME
+        sync: false
+      - key: MQTT_PASSWORD
+        sync: false
+      - key: MQTT_TOPIC_FILTER_3
+        value: battery/data
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB
+        value: battery_monitor
+      - key: MONGO_COLLECTION
+        value: telemetry
+      - key: MONGO_TTL_DAYS
+        value: "30"
