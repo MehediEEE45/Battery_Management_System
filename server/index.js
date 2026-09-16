@@ -183,7 +183,7 @@ app.use(bodyParser.json());
 
 // CORS — allow Netlify and local dev frontends
 app.use((req, res, next) => {
-  const allowedOrigins = ['https://power-monitor.netlify.app', 'http://localhost:3000', 'http://127.0.0.1:3000'];
+  const allowedOrigins = ['https://iotpowerhub.netlify.app', 'https://power-monitor.netlify.app', 'http://localhost:3000', 'http://127.0.0.1:3000'];
   const origin = req.headers.origin;
   if (origin && (allowedOrigins.includes(origin) || origin.startsWith('http://192.168.') || origin.startsWith('http://localhost'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
