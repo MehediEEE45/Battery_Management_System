@@ -67,16 +67,32 @@ in step 4 below.
    Either keeps the service awake essentially continuously, so MQTT stays
    connected and readings keep saving.
 
-   **Even with pinging, gaps can still happen** — a missed ping, a Render
-   redeploy, or platform maintenance still restarts the process. `render.yaml`
-   sets `MQTT_CLIENT_ID` to a fixed value so the MQTT connection uses a
-   persistent session (`clean:false`): HiveMQ then queues QoS-1 messages
-   published while this service is offline and redelivers them the moment it
-   reconnects, instead of dropping them. This shrinks most outage windows
-   from *data loss* to *delayed delivery*, bounded by whatever queue/session
-   limits your HiveMQ plan enforces — it isn't a 100% guarantee, just
-   meaningfully better than the default (which drops everything published
-   while offline).
+   **Even with pinging, gaps still mean lost data.** A missed ping, a
+   redeploy, or platform maintenance restarts the process, and anything the
+   ESP32 publishes during that window is gone permanently. Be clear about why
+   nothing currently rescues it:
+
+   - **Persistent MQTT session doesn't help.** `render.yaml` sets a fixed
+     `MQTT_CLIENT_ID`, so the bridge connects with `clean:false` instead of
+     churning a new session per restart. But MQTT only queues messages for an
+     offline session at **QoS 1/2**, and the ESP32 publishes at **QoS 0** —
+     `client.publish(PUB_TOPIC, buf)` in `mqtt_manager.cpp`, using
+     PubSubClient, which supports QoS 0 publishing only. Brokers drop QoS 0
+     for disconnected subscribers. The server subscribing at `{ qos: 1 }` is
+     a ceiling on delivery, not an upgrade of the publisher's QoS.
+   - **The ESP32's EEPROM buffer doesn't help either.** `main.cpp` buffers
+     only when `wifiOk && mqttOk` is false — i.e. when the *device* can't
+     reach the broker. While this service sleeps, the device's own connection
+     is healthy, so it publishes normally and never buffers. The gap is
+     invisible to it.
+
+   Two things actually close the gap: **(a)** don't have an outage — run on a
+   host that never sleeps (Fly.io's free allowance, or a paid Render
+   instance); or **(b)** publish at QoS 1 from firmware, which means swapping
+   PubSubClient for a QoS-1-capable client
+   ([PsychicMqttClient](https://registry.platformio.org/libraries/elims/PsychicMqttClient)
+   or [ESP32MQTTClient](https://registry.platformio.org/libraries/cyijun/ESP32MQTTClient))
+   and re-flashing the device.
 
 5. **Point the dashboard at it**: open the deployed
    [public/battery-monitor.html](../public/battery-monitor.html) → **Settings**

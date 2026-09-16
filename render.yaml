@@ -20,10 +20,11 @@ services:
         sync: false
       - key: MQTT_TOPIC_FILTER_3
         value: battery/data
-      # Fixed client ID -> persistent MQTT session, so HiveMQ queues
-      # messages published while this service is asleep/restarting and
-      # redelivers them on reconnect instead of dropping them. Not a
-      # secret; safe to hardcode.
+      # Fixed client ID -> stable MQTT session instead of a new random one
+      # per restart. It does NOT preserve telemetry across outages: the
+      # ESP32 publishes at QoS 0 (PubSubClient limit) and brokers never
+      # queue QoS 0 for disconnected subscribers. See server/README.md.
+      # Not a secret; safe to hardcode.
       - key: MQTT_CLIENT_ID
         value: bms-render-bridge-1
       - key: MONGO_URI

@@ -86,12 +86,16 @@ async function initMongo() {
 // Connect to MQTT
 // MQTT connection options with reconnection logic and clientId
 //
-// Persistent session: if MQTT_CLIENT_ID is set to a fixed value, we use
-// clean:false so the broker queues QoS-1 messages published while this
-// process is offline (e.g. asleep on a free host) and redelivers them on
-// reconnect, instead of silently dropping them. A random per-restart ID
-// can't benefit from this (no stable session to queue against), so it
-// keeps clean:true.
+// Stable client ID -> persistent session (clean:false) instead of a new
+// throwaway session per restart.
+//
+// IMPORTANT: this does NOT preserve telemetry across an outage. MQTT only
+// queues messages for an offline session at QoS 1/2, and the ESP32 firmware
+// uses PubSubClient, which can only publish at QoS 0 — brokers drop QoS 0
+// for any subscriber not connected at that instant. Subscribing below at
+// { qos: 1 } is only a ceiling on delivery, not an upgrade of the
+// publisher's QoS. Closing that gap needs either no outage (always-on host)
+// or QoS-1 publishing in firmware (PsychicMqttClient / ESP32MQTTClient).
 const stableClientId = process.env.MQTT_CLIENT_ID || null;
 const mqttOptions = {
   reconnectPeriod: 5000,
