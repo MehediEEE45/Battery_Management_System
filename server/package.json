@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "MQTT -> SQLite bridge for Renewable dashboard telemetry",
   "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js"
   },
