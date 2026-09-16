@@ -85,10 +85,18 @@ async function initMongo() {
 
 // Connect to MQTT
 // MQTT connection options with reconnection logic and clientId
+//
+// Persistent session: if MQTT_CLIENT_ID is set to a fixed value, we use
+// clean:false so the broker queues QoS-1 messages published while this
+// process is offline (e.g. asleep on a free host) and redelivers them on
+// reconnect, instead of silently dropping them. A random per-restart ID
+// can't benefit from this (no stable session to queue against), so it
+// keeps clean:true.
+const stableClientId = process.env.MQTT_CLIENT_ID || null;
 const mqttOptions = {
   reconnectPeriod: 5000,
-  clientId: process.env.MQTT_CLIENT_ID || `node-bridge-${Math.random().toString(16).slice(2, 8)}`,
-  clean: true,
+  clientId: stableClientId || `node-bridge-${Math.random().toString(16).slice(2, 8)}`,
+  clean: !stableClientId,
 };
 if (MQTT_USERNAME) mqttOptions.username = MQTT_USERNAME;
 if (MQTT_PASSWORD) mqttOptions.password = MQTT_PASSWORD;

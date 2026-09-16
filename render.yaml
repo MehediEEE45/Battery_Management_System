@@ -20,6 +20,12 @@ services:
         sync: false
       - key: MQTT_TOPIC_FILTER_3
         value: battery/data
+      # Fixed client ID -> persistent MQTT session, so HiveMQ queues
+      # messages published while this service is asleep/restarting and
+      # redelivers them on reconnect instead of dropping them. Not a
+      # secret; safe to hardcode.
+      - key: MQTT_CLIENT_ID
+        value: bms-render-bridge-1
       - key: MONGO_URI
         sync: false
       - key: MONGO_DB

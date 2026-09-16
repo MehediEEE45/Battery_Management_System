@@ -67,6 +67,17 @@ in step 4 below.
    Either keeps the service awake essentially continuously, so MQTT stays
    connected and readings keep saving.
 
+   **Even with pinging, gaps can still happen** — a missed ping, a Render
+   redeploy, or platform maintenance still restarts the process. `render.yaml`
+   sets `MQTT_CLIENT_ID` to a fixed value so the MQTT connection uses a
+   persistent session (`clean:false`): HiveMQ then queues QoS-1 messages
+   published while this service is offline and redelivers them the moment it
+   reconnects, instead of dropping them. This shrinks most outage windows
+   from *data loss* to *delayed delivery*, bounded by whatever queue/session
+   limits your HiveMQ plan enforces — it isn't a 100% guarantee, just
+   meaningfully better than the default (which drops everything published
+   while offline).
+
 5. **Point the dashboard at it**: open the deployed
    [public/battery-monitor.html](../public/battery-monitor.html) → **Settings**
    tab → set **Backend URL** to that Render domain, save. The Analytics/
