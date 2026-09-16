@@ -105,11 +105,76 @@ in step 4 below.
    you should see `Saved reading for battery_esp32_1 topic=battery/data`
    lines appearing continuously as long as the ESP32 is publishing.
 
-**Alternatives**: [Fly.io](https://fly.io) has a true always-on free
-allowance (no sleep, so no keep-alive ping needed) but requires adding a
-card for identity verification and manual setup via `flyctl`. Railway is
-similar to Render but is trial/credit-based, not permanently free. Same env
-vars, same `server/` root directory work on any of them.
+## Deploying to Fly.io (always-on — closes the data-loss gap)
+
+Render's free tier sleeps, and because the ESP32 publishes at QoS 0 (see
+above) every sleep window loses readings permanently. Fly.io machines can be
+configured never to stop, which removes the outage rather than trying to
+cushion it. Config lives in [`fly.toml`](fly.toml) and [`Dockerfile`](Dockerfile).
+
+1. **Install flyctl and sign in**
+   ```bash
+   # Windows (PowerShell):
+   iwr https://fly.io/install.ps1 -useb | iex
+   flyctl auth signup     # or: flyctl auth login
+   ```
+   Fly asks for a card to verify identity; the free allowance isn't charged.
+
+2. **Launch from this directory** (do *not* let it overwrite the existing
+   config):
+   ```bash
+   cd server
+   flyctl launch --no-deploy --copy-config
+   ```
+   App names are globally unique across all Fly users, so if
+   `bms-mqtt-bridge` is taken, pick another and update `app =` in `fly.toml`.
+
+3. **Set the secrets** (these are deliberately not in `fly.toml`, which is
+   committed to git):
+   ```bash
+   flyctl secrets set \
+     MQTT_USERNAME='battery' \
+     MQTT_PASSWORD='<your MQTT password>' \
+     MONGO_URI='mongodb+srv://<user>:<pass>@bmscluster.geholqc.mongodb.net/?appName=BMSCluster'
+   ```
+
+4. **Deploy**
+   ```bash
+   flyctl deploy --remote-only
+   ```
+   `--remote-only` builds on Fly's builders, so local Docker isn't needed.
+   **Watch this build**: `sqlite3` is a native module, and if no prebuilt
+   binary matches it compiles from source — the `Dockerfile` installs
+   `python3/make/g++` for that case, but this first deploy is the real test
+   of it. If the build fails on `sqlite3`, the fastest fix is removing it
+   (it's redundant — nothing reads the SQLite data back; MongoDB is the
+   store).
+
+5. **Verify**
+   ```bash
+   curl https://<your-app>.fly.dev/api/status
+   flyctl logs
+   ```
+   Expect `{"mqtt":true,"mongo":true,...}` and a steady stream of
+   `Saved reading for battery_esp32_1`.
+
+6. **Cut over from Render — important.** While both services run they each
+   subscribe to `battery/data` and each insert into the same MongoDB
+   collection, so **every reading gets stored twice**. `fly.toml` already
+   uses a distinct `MQTT_CLIENT_ID` (`bms-fly-bridge-1`) so the two don't
+   fight over one broker session, but the duplicate writes are still real.
+   Once Fly is confirmed healthy: suspend or delete the Render service, point
+   the dashboard's **Backend URL** at `https://<your-app>.fly.dev`, and
+   delete the cron-job.org/UptimeRobot keep-alive ping (Fly doesn't sleep, so
+   it serves no purpose).
+
+Note: SQLite writes to ephemeral container storage on Fly and is lost on
+restart. That's fine here — the dashboard never reads it; MongoDB is the
+real store.
+
+**Other options**: Railway is similar to Render but trial/credit-based, not
+permanently free. A paid Render instance also never sleeps if you'd rather
+stay on Render.
 
 **Before deploying**: rotate the MQTT and MongoDB passwords if they've ever
 been pasted in chat, a screen share, or committed to git history — treat any

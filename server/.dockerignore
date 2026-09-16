@@ -1,0 +1,16 @@
+# Never bake credentials into the image
+.env
+
+# Local build/runtime artifacts
+node_modules
+npm-debug.log*
+
+# Local SQLite cache and sample data — not needed in the image.
+# (SQLite is written to ephemeral container storage on Fly and is never
+# read back by the dashboard; MongoDB is the real store.)
+telemetry.db
+*.csv
+
+# Python variants of the bridge, not used by the Node service
+*.py
+__pycache__

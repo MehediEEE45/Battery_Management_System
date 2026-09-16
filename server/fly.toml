@@ -1,0 +1,47 @@
+# Fly.io config for the MQTT -> MongoDB bridge.
+# Deploy from this directory:  cd server && flyctl deploy
+#
+# Secrets are NOT stored here (this file is committed to git). Set them with:
+#   flyctl secrets set MQTT_USERNAME=... MQTT_PASSWORD=... MONGO_URI=...
+
+app = "bms-mqtt-bridge"
+
+# Mumbai — closest Fly region to Bangladesh. Change if you prefer another
+# (flyctl platform regions) — it only affects latency, not behaviour.
+primary_region = "bom"
+
+[build]
+
+[env]
+  PORT = "3000"
+  MQTT_URL = "mqtts://0d34f5789e1e4a669367abfe5bd45b15.s1.eu.hivemq.cloud:8883"
+  MQTT_TOPIC_FILTER_3 = "battery/data"
+  # MUST differ from the Render service's ID (bms-render-bridge-1). Two
+  # clients sharing one MQTT client ID get kicked off by the broker in
+  # turn, producing a reconnect loop — and while both run they'd each
+  # insert the same readings into MongoDB, duplicating every document.
+  MQTT_CLIENT_ID = "bms-fly-bridge-1"
+  MONGO_DB = "battery_monitor"
+  MONGO_COLLECTION = "telemetry"
+  MONGO_TTL_DAYS = "30"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+
+  # The whole point of moving here: never sleep, so the MQTT subscription
+  # stays connected and QoS 0 telemetry is never missed.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/status"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
