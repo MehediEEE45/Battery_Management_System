@@ -946,13 +946,9 @@
             <!-- Backend Server Configuration -->
             <div style="max-width:600px;margin-top:24px;">
                 <div class="stat-card">
-                    <h3 style="font-size:18px;font-weight:600;margin-bottom:16px;">Backend Server (MongoDB API)</h3>
+                    <h3 style="font-size:18px;font-weight:600;margin-bottom:16px;">Data Backend</h3>
+                    <p style="font-size:12px;color:#6b7280;margin-bottom:16px;">Readings are stored automatically by this site's own backend — no separate server or database connection string needed. Set the Device ID below to match the identifier you want your history, analytics and exports grouped under.</p>
                     <div style="display:grid;gap:16px;">
-                        <div>
-                            <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">Server URL</label>
-                            <input type="text" class="input-field" id="backendUrl" placeholder="http://192.168.0.103:3000">
-                            <p style="font-size:11px;color:#6b7280;margin-top:4px;">Your Express server address (e.g. http://localhost:3000 or http://192.168.x.x:3000)</p>
-                        </div>
                         <div>
                             <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">Device ID</label>
                             <input type="text" class="input-field" id="backendDeviceId" value="battery_esp32_1">
@@ -963,36 +959,6 @@
                         <button class="btn btn-secondary" onclick="testBackendConnection()">Test Connection</button>
                     </div>
                     <div id="backendStatus" style="font-size:12px;margin-top:12px;color:#9ca3af;"></div>
-                </div>
-            </div>
-
-            <!-- MongoDB Configuration -->
-            <div style="max-width:600px;margin-top:24px;">
-                <div class="stat-card">
-                    <h3 style="font-size:18px;font-weight:600;margin-bottom:16px;">MongoDB Configuration</h3>
-                    <div style="display:grid;gap:16px;">
-                        <div>
-                            <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">MongoDB URI</label>
-                            <input type="text" class="input-field" id="mongoUri" placeholder="mongodb+srv://user:pass@cluster.mongodb.net/battery_monitor">
-                            <p style="font-size:11px;color:#6b7280;margin-top:4px;">Example: mongodb+srv://username:password@cluster.mongodb.net/battery_monitor</p>
-                        </div>
-                        <div>
-                            <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">Database Name</label>
-                            <input type="text" class="input-field" id="mongoDb" value="battery_monitor">
-                        </div>
-                        <div>
-                            <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">Collection Name</label>
-                            <input type="text" class="input-field" id="mongoCollection" value="telemetry">
-                        </div>
-                        <div>
-                            <label style="font-size:14px;color:#9ca3af;display:block;margin-bottom:8px;">TTL Days (for auto-cleanup, 0 = disabled)</label>
-                            <input type="number" class="input-field" id="mongoTtl" value="30" min="0">
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:12px;margin-top:16px;">
-                        <button class="btn btn-primary" onclick="saveMongoConfig()">Save MongoDB Config</button>
-                    </div>
-                    <div id="mongoStatus" style="font-size:12px;margin-top:12px;color:#9ca3af;"></div>
                 </div>
             </div>
 
@@ -1082,12 +1048,10 @@
         // Recording variables
         let isRecording = false;
         let recordedData = [];
-        let mongoConfig = { uri: '', db: 'battery_monitor', collection: 'telemetry', ttl: 30 };
-        let backendConfig = { url: '', deviceId: 'battery_esp32_1' };
+        let backendConfig = { deviceId: 'battery_esp32_1' };
 
-        // Get the backend server URL (from config or fallback to same origin)
+        // The data backend is built into this site (Netlify Functions), always same-origin.
         function getBackendUrl() {
-            if (backendConfig.url) return backendConfig.url.replace(/\/+$/, '');
             return window.location.protocol + '//' + window.location.host;
         }
         function getDeviceId() {
@@ -1275,6 +1239,13 @@
                         document.getElementById('rawPayload').textContent = JSON.stringify(payload, null, 2);
                         updateUI(payload);
                         updateCharts(payload);
+
+                        // Persist to the built-in backend (fire-and-forget)
+                        fetch(`${getBackendUrl()}/api/readings`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ device_id: getDeviceId(), topic: topic, payload: payload })
+                        }).catch(() => {});
                     } catch (e) {
                         console.error('[MQTT] Parse error:', e);
                         mqttLog('PARSE ERROR: ' + e.message);
@@ -1910,33 +1881,7 @@
             });
         }
 
-        // ===== MongoDB Configuration Functions =====
-        function saveMongoConfig() {
-            mongoConfig.uri = document.getElementById('mongoUri').value;
-            mongoConfig.db = document.getElementById('mongoDb').value;
-            mongoConfig.collection = document.getElementById('mongoCollection').value;
-            mongoConfig.ttl = parseInt(document.getElementById('mongoTtl').value);
-            
-            localStorage.setItem('mongo_config', JSON.stringify(mongoConfig));
-            document.getElementById('mongoStatus').innerHTML = '<span style="color:#22c55e;">✓ MongoDB configuration saved!</span>';
-            setTimeout(() => {
-                document.getElementById('mongoStatus').innerHTML = '';
-            }, 3000);
-        }
-
-        function loadMongoConfig() {
-            const saved = localStorage.getItem('mongo_config');
-            if (saved) {
-                mongoConfig = JSON.parse(saved);
-                document.getElementById('mongoUri').value = mongoConfig.uri;
-                document.getElementById('mongoDb').value = mongoConfig.db;
-                document.getElementById('mongoCollection').value = mongoConfig.collection;
-                document.getElementById('mongoTtl').value = mongoConfig.ttl;
-            }
-        }
-
         function saveBackendConfig() {
-            backendConfig.url = document.getElementById('backendUrl').value.trim();
             backendConfig.deviceId = document.getElementById('backendDeviceId').value.trim() || 'battery_esp32_1';
             localStorage.setItem('backend_config', JSON.stringify(backendConfig));
             document.getElementById('backendStatus').innerHTML = '<span style="color:#22c55e;">✓ Backend configuration saved!</span>';
@@ -1947,7 +1892,6 @@
             const saved = localStorage.getItem('backend_config');
             if (saved) {
                 backendConfig = JSON.parse(saved);
-                document.getElementById('backendUrl').value = backendConfig.url || '';
                 document.getElementById('backendDeviceId').value = backendConfig.deviceId || 'battery_esp32_1';
             }
         }
@@ -1968,11 +1912,6 @@
                 document.getElementById('backendStatus').innerHTML = '<span style="color:#ef4444;">✗ Cannot reach server: ' + e.message + '</span>';
             }
             setTimeout(() => { document.getElementById('backendStatus').innerHTML = ''; }, 5000);
-        }
-
-        function testMongoConnection() {
-            document.getElementById('mongoStatus').innerHTML = '<span style="color:#6b7280;">MongoDB is managed by the backend server. Use "Test Connection" above to verify.</span>';
-            setTimeout(() => { document.getElementById('mongoStatus').innerHTML = ''; }, 3000);
         }
 
         // ===== ESP32 Command Functions =====
@@ -2281,8 +2220,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             loadBackendConfig();
-            loadMongoConfig();
-            
+
             // Initialize mobile menu
             const sidebar = document.querySelector('.sidebar');
             if (window.innerWidth <= 768) {
